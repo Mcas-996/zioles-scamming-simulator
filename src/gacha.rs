@@ -53,9 +53,9 @@ impl DlcState {
         Self { duplicate_limit: 1 }
     }
 
-    pub fn enabled(duplicate_limit: u32) -> Self {
+    pub fn increase_duplicate_limit(self, amount: u32) -> Self {
         Self {
-            duplicate_limit: duplicate_limit.max(1),
+            duplicate_limit: self.duplicate_limit.saturating_add(amount).max(1),
         }
     }
 
@@ -269,7 +269,7 @@ mod tests {
     fn duplicate_draw_succeeds_until_dlc_limit() {
         let mut inventory = PlayerInventory::new();
         let mut rng = SequenceRng::new(vec![0, 0, 0, 0]);
-        let dlc = DlcState::enabled(3);
+        let dlc = DlcState::disabled().increase_duplicate_limit(2);
 
         let first = draw_fruit(&mut inventory, &single_fruit_pool(), dlc, &mut rng).unwrap();
         let second = draw_fruit(&mut inventory, &single_fruit_pool(), dlc, &mut rng).unwrap();
@@ -286,6 +286,14 @@ mod tests {
                 limit: 3,
             }
         );
+    }
+
+    #[test]
+    fn dlc_code_increases_duplicate_limit_by_one() {
+        let dlc = DlcState::disabled().increase_duplicate_limit(1);
+
+        assert_eq!(dlc.duplicate_limit, 2);
+        assert!(dlc.is_enabled());
     }
 
     #[test]
