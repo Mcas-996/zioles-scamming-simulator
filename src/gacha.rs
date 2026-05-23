@@ -1,3 +1,4 @@
+use ordered_float::NotNan;
 use rand::Rng;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -6,7 +7,7 @@ use std::fmt;
 pub struct FruitDef {
     pub name: &'static str,
     pub rarity: Rarity,
-    pub weight: f64,
+    pub weight: NotNan<f64>,
 }
 
 impl FruitDef {
@@ -14,7 +15,7 @@ impl FruitDef {
         Self {
             name,
             rarity,
-            weight,
+            weight: NotNan::new(weight).expect("fruit weight must not be NaN"),
         }
     }
 }
@@ -86,14 +87,13 @@ impl PlayerInventory {
         let limit = self.limit_for(fruit, dlc_state);
 
         if current >= limit {
-            return AddFruitResult::DuplicateLimitReached {
-                current,
-                limit,
-            };
+            return AddFruitResult::DuplicateLimitReached { current, limit };
         }
 
         self.items.insert(fruit.name, current + 1);
-        AddFruitResult::Stored { new_total: current + 1 }
+        AddFruitResult::Stored {
+            new_total: current + 1,
+        }
     }
 
     pub fn entries(&self) -> impl Iterator<Item = (&'static str, u32)> + '_ {
@@ -151,17 +151,18 @@ fn choose_weighted<'a, R: Rng + ?Sized>(
         return Err(DrawError::EmptyPool);
     }
 
-    let total_weight:f64 = pool.iter().map(|fruit| fruit.weight).sum();
+    let total_weight: f64 = pool.iter().map(|fruit| fruit.weight.into_inner()).sum();
     if total_weight == 0.0 {
         return Err(DrawError::InvalidWeights);
     }
 
-    let mut roll:f64 = rng.gen_range(0.0..total_weight);
+    let mut roll: f64 = rng.gen_range(0.0..total_weight);
     for fruit in pool {
-        if roll < fruit.weight {
+        let weight = fruit.weight.into_inner();
+        if roll < weight {
             return Ok(fruit);
         }
-        roll -= fruit.weight;
+        roll -= weight;
     }
 
     Err(DrawError::InvalidWeights)
@@ -213,7 +214,7 @@ mod tests {
     }
 
     fn single_fruit_pool() -> Vec<FruitDef> {
-        vec![FruitDef::new("Rocket", Rarity::Common, 1)]
+        vec![FruitDef::new("Rocket", Rarity::Common, 1.0)]
     }
 
     #[test]
@@ -221,9 +222,13 @@ mod tests {
         let mut inventory = PlayerInventory::new();
         let mut rng = SequenceRng::new(vec![0]);
 
-        let outcome =
-            draw_fruit(&mut inventory, &single_fruit_pool(), DlcState::disabled(), &mut rng)
-                .unwrap();
+        let outcome = draw_fruit(
+            &mut inventory,
+            &single_fruit_pool(),
+            DlcState::disabled(),
+            &mut rng,
+        )
+        .unwrap();
 
         assert_eq!(outcome.fruit.name, "Rocket");
         assert_eq!(outcome.storage, AddFruitResult::Stored { new_total: 1 });
@@ -235,10 +240,20 @@ mod tests {
         let mut inventory = PlayerInventory::new();
         let mut rng = SequenceRng::new(vec![0, 0]);
 
-        draw_fruit(&mut inventory, &single_fruit_pool(), DlcState::disabled(), &mut rng).unwrap();
-        let outcome =
-            draw_fruit(&mut inventory, &single_fruit_pool(), DlcState::disabled(), &mut rng)
-                .unwrap();
+        draw_fruit(
+            &mut inventory,
+            &single_fruit_pool(),
+            DlcState::disabled(),
+            &mut rng,
+        )
+        .unwrap();
+        let outcome = draw_fruit(
+            &mut inventory,
+            &single_fruit_pool(),
+            DlcState::disabled(),
+            &mut rng,
+        )
+        .unwrap();
 
         assert_eq!(
             outcome.storage,
@@ -275,8 +290,8 @@ mod tests {
 
     #[test]
     fn different_fruits_are_stored_independently() {
-        let rocket = FruitDef::new("Rocket", Rarity::Common, 1);
-        let spin = FruitDef::new("Spin", Rarity::Common, 1);
+        let rocket = FruitDef::new("Rocket", Rarity::Common, 1.0);
+        let spin = FruitDef::new("Spin", Rarity::Common, 1.0);
         let mut inventory = PlayerInventory::new();
         let first = inventory.add_fruit(&rocket, DlcState::disabled());
         let second = inventory.add_fruit(&spin, DlcState::disabled());

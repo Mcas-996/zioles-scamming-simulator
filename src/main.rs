@@ -111,7 +111,10 @@ fn print_inventory(inventory: &PlayerInventory, dlc_state: DlcState) {
 fn print_pool(pool: &[gacha::FruitDef]) {
     println!("Fruit Pool");
     for fruit in pool {
-        println!("- {} [{}] weight={}", fruit.name, fruit.rarity, fruit.weight);
+        println!(
+            "- {} [{}] weight={}",
+            fruit.name, fruit.rarity, fruit.weight
+        );
     }
 }
 
