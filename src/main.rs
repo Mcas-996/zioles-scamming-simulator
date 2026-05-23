@@ -1,7 +1,7 @@
 mod data;
 mod gacha;
 
-use crate::data::{DUPLICATE_LIMIT_WITH_DLC, default_fruit_pool};
+use crate::data::{DLC_CODE_PATH, DUPLICATE_LIMIT_INCREMENT_PER_DLC_CODE, default_fruit_pool};
 use crate::gacha::{AddFruitResult, DlcState, DrawError, PlayerInventory, draw_fruit};
 use rand::thread_rng;
 use std::io::{self, Write};
@@ -34,18 +34,16 @@ fn main() {
             }
         }
 
-        let command = input.trim().to_ascii_lowercase();
+        let trimmed_input = input.trim();
+        let mut parts = trimmed_input.splitn(2, char::is_whitespace);
+        let command = parts.next().unwrap_or("").to_ascii_lowercase();
+        let argument = parts.next().unwrap_or("").trim();
+
         match command.as_str() {
             "draw" => run_draw(&mut inventory, &pool, dlc_state, &mut rng),
             "inventory" => print_inventory(&inventory, dlc_state),
             "pool" => print_pool(&pool),
-            "buy-dlc" => {
-                dlc_state = DlcState::enabled(DUPLICATE_LIMIT_WITH_DLC);
-                println!(
-                    "DLC enabled. Duplicate limit per fruit is now {}.",
-                    dlc_state.duplicate_limit
-                );
-            }
+            "buy-dlc" => dlc_state = run_buy_dlc(argument, dlc_state),
             "help" => print_help(),
             "exit" | "quit" => {
                 println!("bye");
@@ -53,6 +51,33 @@ fn main() {
             }
             "" => {}
             _ => println!("unknown command. type `help` to see available commands."),
+        }
+    }
+}
+
+fn run_buy_dlc(code: &str, dlc_state: DlcState) -> DlcState {
+    if code.is_empty() {
+        println!("Usage: buy-dlc <code>");
+        return dlc_state;
+    }
+
+    match data::dlc_code_exists(code, DLC_CODE_PATH) {
+        Ok(true) => {
+            let new_state =
+                dlc_state.increase_duplicate_limit(DUPLICATE_LIMIT_INCREMENT_PER_DLC_CODE);
+            println!(
+                "DLC code accepted. Duplicate limit per fruit is now {}.",
+                new_state.duplicate_limit
+            );
+            new_state
+        }
+        Ok(false) => {
+            println!("Invalid DLC code.");
+            dlc_state
+        }
+        Err(error) => {
+            eprintln!("failed to read DLC codes from {DLC_CODE_PATH}: {error}");
+            dlc_state
         }
     }
 }
@@ -123,7 +148,7 @@ fn print_help() {
     println!("- draw      roll one fruit");
     println!("- inventory show owned fruits");
     println!("- pool      show the current fruit pool");
-    println!("- buy-dlc   unlock duplicate storage");
+    println!("- buy-dlc <code> increase duplicate storage by 1 with a DLC code");
     println!("- help      show commands");
     println!("- exit      quit the demo");
 }
