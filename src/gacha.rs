@@ -6,11 +6,11 @@ use std::fmt;
 pub struct FruitDef {
     pub name: &'static str,
     pub rarity: Rarity,
-    pub weight: u32,
+    pub weight: f64,
 }
 
 impl FruitDef {
-    pub fn new(name: &'static str, rarity: Rarity, weight: u32) -> Self {
+    pub fn new(name: &'static str, rarity: Rarity, weight: f64) -> Self {
         Self {
             name,
             rarity,
@@ -25,6 +25,7 @@ pub enum Rarity {
     Rare,
     Epic,
     Legendary,
+    Mythical,
 }
 
 impl fmt::Display for Rarity {
@@ -34,6 +35,7 @@ impl fmt::Display for Rarity {
             Rarity::Rare => "Rare",
             Rarity::Epic => "Epic",
             Rarity::Legendary => "Legendary",
+            Rarity::Mythical => "Mythical",
         };
 
         write!(f, "{label}")
@@ -149,12 +151,12 @@ fn choose_weighted<'a, R: Rng + ?Sized>(
         return Err(DrawError::EmptyPool);
     }
 
-    let total_weight: u32 = pool.iter().map(|fruit| fruit.weight).sum();
-    if total_weight == 0 {
+    let total_weight:f64 = pool.iter().map(|fruit| fruit.weight).sum();
+    if total_weight == 0.0 {
         return Err(DrawError::InvalidWeights);
     }
 
-    let mut roll = rng.gen_range(0..total_weight);
+    let mut roll:f64 = rng.gen_range(0.0..total_weight);
     for fruit in pool {
         if roll < fruit.weight {
             return Ok(fruit);
