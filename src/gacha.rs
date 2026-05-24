@@ -66,7 +66,7 @@ impl DlcState {
 
 #[derive(Debug, Default)]
 pub struct PlayerInventory {
-    items: BTreeMap<&'static str, u32>,
+    items: BTreeMap<String, u32>,
 }
 
 impl PlayerInventory {
@@ -74,7 +74,16 @@ impl PlayerInventory {
         Self::default()
     }
 
-    pub fn quantity_of(&self, fruit_name: &'static str) -> u32 {
+    pub fn from_entries(entries: impl IntoIterator<Item = (String, u32)>) -> Self {
+        Self {
+            items: entries
+                .into_iter()
+                .filter(|(_, qty)| *qty > 0)
+                .collect::<BTreeMap<_, _>>(),
+        }
+    }
+
+    pub fn quantity_of(&self, fruit_name: &str) -> u32 {
         self.items.get(fruit_name).copied().unwrap_or(0)
     }
 
@@ -90,14 +99,14 @@ impl PlayerInventory {
             return AddFruitResult::DuplicateLimitReached { current, limit };
         }
 
-        self.items.insert(fruit.name, current + 1);
+        self.items.insert(fruit.name.to_string(), current + 1);
         AddFruitResult::Stored {
             new_total: current + 1,
         }
     }
 
-    pub fn entries(&self) -> impl Iterator<Item = (&'static str, u32)> + '_ {
-        self.items.iter().map(|(name, qty)| (*name, *qty))
+    pub fn entries(&self) -> impl Iterator<Item = (&str, u32)> + '_ {
+        self.items.iter().map(|(name, qty)| (name.as_str(), *qty))
     }
 }
 
