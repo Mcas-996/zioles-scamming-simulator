@@ -11,7 +11,6 @@ use std::io::{self, Write};
 use std::path::Path;
 
 fn main() {
-    let pool = default_fruit_pool();
     let save_path = default_save_path();
     let (mut inventory, mut dlc_state) = load_game_state(&save_path);
     let mut rng = thread_rng();
@@ -46,12 +45,13 @@ fn main() {
 
         match command.as_str() {
             "draw" => {
+                let pool = default_fruit_pool();
                 if run_draw(&mut inventory, &pool, dlc_state, &mut rng) {
                     save_current_game(&save_path, &inventory, dlc_state);
                 }
             }
             "inventory" => print_inventory(&inventory, dlc_state),
-            "pool" => print_pool(&pool),
+            "pool" => print_pool(&default_fruit_pool()),
             "buy-dlc" => {
                 let (new_dlc_state, changed) = run_buy_dlc(argument, dlc_state);
                 dlc_state = new_dlc_state;

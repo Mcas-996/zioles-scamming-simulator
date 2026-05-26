@@ -2,7 +2,16 @@
 name = "oneLuck"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/Mcas-996/zioles-scamming-simulator/"
+description = "Belive me you can get a dragon in 10 eons."
+homepage = "https://github.com/Mcas-996/zioles-scamming-simulator/"
 
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 ordered-float = "4"
 rand = "0.8"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

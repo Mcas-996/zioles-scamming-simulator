@@ -52,4 +52,4 @@ src/
 
 ## Notes
 
-Fruit weights are defined in `src/data.rs`. A fruit with weight `0.0` cannot currently be rolled, while very small positive weights make a fruit extremely rare.
+Fruit weights are defined in `src/data.rs`. A fruit with weight `0.0` can be rolled if you have found a glitch, while very small positive weights make a fruit extremely rare.

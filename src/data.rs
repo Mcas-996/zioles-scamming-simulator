@@ -1,4 +1,5 @@
 use crate::gacha::{FruitDef, Rarity};
+use chrono::{Local, NaiveDate};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -7,6 +8,9 @@ pub const DLC_CODE_PATH: &str = "DLC/p1fs.txt";
 pub const DUPLICATE_LIMIT_INCREMENT_PER_DLC_CODE: u32 = 1;
 pub const SAVE_FILE_NAME: &str = "save.txt";
 pub const SAVE_VERSION: &str = "1";
+const DRAGON_FULL_MOON_WEIGHT: f64 = f64::from_bits(1);
+const SYNODIC_MONTH_DAYS: f64 = 29.530_588_853;
+const FULL_MOON_WINDOW_DAYS: f64 = 0.75;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SaveData {
@@ -155,6 +159,10 @@ fn parse_save(contents: &str) -> Result<SaveData, String> {
 }
 
 pub fn default_fruit_pool() -> Vec<FruitDef> {
+    fruit_pool_for_date(Local::now().date_naive())
+}
+
+fn fruit_pool_for_date(date: NaiveDate) -> Vec<FruitDef> {
     vec![
         FruitDef::new("Rocket", Rarity::Common, 30.0),
         FruitDef::new("Spin", Rarity::Common, 30.0),
@@ -165,10 +173,28 @@ pub fn default_fruit_pool() -> Vec<FruitDef> {
         FruitDef::new("Portal", Rarity::Legendary, 0.0001),
         FruitDef::new("Phoenix", Rarity::Legendary, 0.01),
         FruitDef::new("Piranha", Rarity::Mythical, 0.0),
-        FruitDef::new("Dragon", Rarity::Mythical, f64::from_bits(1)),
+        FruitDef::new("Dragon", Rarity::Mythical, dragon_weight_for_date(date)),
     ]
 }
 // the third value of the FruitDef is f64, i am way too kind.
+
+fn dragon_weight_for_date(date: NaiveDate) -> f64 {
+    if is_approx_full_moon(date) {
+        DRAGON_FULL_MOON_WEIGHT
+    } else {
+        0.0
+    }
+}
+
+fn is_approx_full_moon(date: NaiveDate) -> bool {
+    let reference_full_moon =
+        NaiveDate::from_ymd_opt(2000, 1, 21).expect("reference full moon date is valid");
+    let elapsed_days = date.signed_duration_since(reference_full_moon).num_days() as f64;
+    let phase_days = elapsed_days.rem_euclid(SYNODIC_MONTH_DAYS);
+    let days_from_full_moon = phase_days.min(SYNODIC_MONTH_DAYS - phase_days);
+
+    days_from_full_moon <= FULL_MOON_WINDOW_DAYS
+}
 
 #[cfg(test)]
 mod tests {
@@ -187,6 +213,18 @@ mod tests {
         let path = unique_temp_path("one_luck_dlc_codes");
         fs::write(&path, contents).expect("test should write dlc codes");
         path
+    }
+
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day).expect("test date should be valid")
+    }
+
+    fn dragon_weight(pool: &[FruitDef]) -> f64 {
+        pool.iter()
+            .find(|fruit| fruit.name == "Dragon")
+            .expect("pool should contain Dragon")
+            .weight
+            .into_inner()
     }
 
     #[test]
@@ -222,5 +260,29 @@ mod tests {
         let path = unique_temp_path("one_luck_missing_save_for_test");
 
         assert_eq!(load_save(path).unwrap(), None);
+    }
+
+    #[test]
+    fn reference_full_moon_date_is_full_moon() {
+        assert!(is_approx_full_moon(date(2000, 1, 21)));
+    }
+
+    #[test]
+    fn obvious_non_full_moon_date_is_not_full_moon() {
+        assert!(!is_approx_full_moon(date(2000, 1, 28)));
+    }
+
+    #[test]
+    fn dragon_has_weight_on_full_moon() {
+        let pool = fruit_pool_for_date(date(2000, 1, 21));
+
+        assert_eq!(dragon_weight(&pool), DRAGON_FULL_MOON_WEIGHT);
+    }
+
+    #[test]
+    fn dragon_has_zero_weight_when_not_full_moon() {
+        let pool = fruit_pool_for_date(date(2000, 1, 28));
+
+        assert_eq!(dragon_weight(&pool), 0.0);
     }
 }
