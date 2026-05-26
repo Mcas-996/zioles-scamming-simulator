@@ -213,3 +213,5 @@ fn print_help() {
     println!("- help      show commands");
     println!("- exit      quit the demo");
 }
+
+//Do you know how much is a piece of dragon? 500k fragments.
